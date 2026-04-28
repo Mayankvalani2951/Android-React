@@ -1,0 +1,446 @@
+com.example.crudapp
+│
+├── MainActivity.java
+├── DBHelper.java
+└── activity_main.xml
+
+
+
+///////////////////DBHelper.java//////////////////////////////
+
+package com.example.crudapp;
+
+import android.content.*;
+import android.database.Cursor;
+import android.database.sqlite.*;
+
+public class DBHelper extends SQLiteOpenHelper {
+
+    public DBHelper(Context context) {
+        super(context, "UserDB", null, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE users(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT)");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS users");
+        onCreate(db);
+    }
+
+    // CREATE
+    public boolean insertData(String name, String email) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("name", name);
+        cv.put("email", email);
+        long result = db.insert("users", null, cv);
+        return result != -1;
+    }
+
+    // READ
+    public Cursor getData() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return db.rawQuery("SELECT * FROM users", null);
+    }
+
+    // UPDATE
+    public boolean updateData(String id, String name, String email) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("name", name);
+        cv.put("email", email);
+        int result = db.update("users", cv, "id=?", new String[]{id});
+        return result > 0;
+    }
+
+    // DELETE
+    public boolean deleteData(String id) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int result = db.delete("users", "id=?", new String[]{id});
+        return result > 0;
+    }
+}
+
+
+
+////////////MainActivity.java///////////////////////////
+package com.example.crudapp;
+
+import android.database.Cursor;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.*;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    EditText name, email, id;
+    Button insert, view, update, delete;
+    DBHelper db;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        name = findViewById(R.id.name);
+        email = findViewById(R.id.email);
+        id = findViewById(R.id.id);
+
+        insert = findViewById(R.id.insert);
+        view = findViewById(R.id.view);
+        update = findViewById(R.id.update);
+        delete = findViewById(R.id.delete);
+
+        db = new DBHelper(this);
+
+        insert.setOnClickListener(v ->
+            db.insertData(name.getText().toString(), email.getText().toString())
+        );
+
+        view.setOnClickListener(v -> {
+            Cursor cursor = db.getData();
+            StringBuilder data = new StringBuilder();
+
+            while (cursor.moveToNext()) {
+                data.append("ID: ").append(cursor.getString(0)).append("\n");
+                data.append("Name: ").append(cursor.getString(1)).append("\n\n");
+            }
+
+            Toast.makeText(this, data.toString(), Toast.LENGTH_LONG).show();
+        });
+
+        update.setOnClickListener(v ->
+            db.updateData(id.getText().toString(),
+                          name.getText().toString(),
+                          email.getText().toString())
+        );
+
+        delete.setOnClickListener(v ->
+            db.deleteData(id.getText().toString())
+        );
+    }
+}
+
+
+/////////////////////////activity_main.xml////////////////////////////////
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <EditText
+        android:id="@+id/id"
+        android:hint="Enter ID"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/name"
+        android:hint="Enter Name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <EditText
+        android:id="@+id/email"
+        android:hint="Enter Email"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button android:id="@+id/insert" android:text="Insert"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+    <Button android:id="@+id/view" android:text="View"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+    <Button android:id="@+id/update" android:text="Update"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+    <Button android:id="@+id/delete" android:text="Delete"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+</LinearLayout>
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+\\\\🔧 1. Laravel Backend Setup
+\\\\\\Step 1: Create Laravel Project
+
+composer create-project laravel/laravel laravel-react-crud
+cd laravel-react-crud
+php artisan serve
+
+\\\Step 2: Configure Database
+
+Edit: .env
+
+DB_DATABASE=crud_db
+DB_USERNAME=root
+DB_PASSWORD=
+
+
+Run:
+
+php artisan migrate
+
+\\\\\\\\\Step 3: Create Model + Migration + Controller
+
+php artisan make:model Post -mcr
+
+\\\\\\\\\\\\Step 4: Migration File
+
+File: database/migrations/xxxx_create_posts_table.php
+
+public function up()
+{
+    Schema::create('posts', function (Blueprint $table) {
+        $table->id();
+        $table->string('title');
+        $table->text('description');
+        $table->timestamps();
+    });
+}
+
+
+Run:
+
+php artisan migrate
+
+\\\\\\\\\Step 5: Model
+
+File: app/Models/Post.php
+
+protected $fillable = ['title', 'description'];
+
+\\\\\\\\\Step 6: Controller
+
+File: app/Http/Controllers/PostController.php
+
+namespace App\Http\Controllers;
+
+use App\Models\Post;
+use Illuminate\Http\Request;
+
+class PostController extends Controller
+{
+    public function index()
+    {
+        return Post::all();
+    }
+
+    public function store(Request $request)
+    {
+        return Post::create($request->all());
+    }
+
+    public function show($id)
+    {
+        return Post::find($id);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $post = Post::find($id);
+        $post->update($request->all());
+        return $post;
+    }
+
+    public function destroy($id)
+    {
+        return Post::destroy($id);
+    }
+}
+
+\\\\\\\\\Step 7: API Routes
+
+File: routes/api.php
+
+use App\Http\Controllers\PostController;
+
+Route::apiResource('posts', PostController::class);
+
+////////////////////////////////////////////////////////////////////
+⚛️ 2. React Frontend Setup
+////////Step 1: Create React App
+npx create-react-app react-crud
+cd react-crud
+npm install axios
+npm start
+
+//////////Step 2: Folder Structure
+src/
+ ├── components/
+ │    ├── PostList.js
+ │    ├── AddPost.js
+ │    └── EditPost.js
+ ├── App.js
+
+📄 React Files
+//////////1. API Config (optional)
+
+File: src/api.js
+
+import axios from "axios";
+
+export default axios.create({
+  baseURL: "http://127.0.0.1:8000/api"
+});
+
+/////////2. App.js
+
+File: src/App.js
+
+import React from "react";
+import PostList from "./components/PostList";
+
+function App() {
+  return (
+    <div>
+      <h2>Laravel React CRUD</h2>
+      <PostList />
+    </div>
+  );
+}
+
+export default App;
+
+///////////3. Post List (READ + DELETE)
+
+File: src/components/PostList.js
+
+import React, { useEffect, useState } from "react";
+import axios from "../api";
+import AddPost from "./AddPost";
+import EditPost from "./EditPost";
+
+function PostList() {
+  const [posts, setPosts] = useState([]);
+  const [editPost, setEditPost] = useState(null);
+
+  const fetchPosts = async () => {
+    const res = await axios.get("/posts");
+    setPosts(res.data);
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const deletePost = async (id) => {
+    await axios.delete(`/posts/${id}`);
+    fetchPosts();
+  };
+
+  return (
+    <div>
+      <AddPost fetchPosts={fetchPosts} />
+      {editPost && (
+        <EditPost post={editPost} fetchPosts={fetchPosts} setEditPost={setEditPost} />
+      )}
+      <ul>
+        {posts.map((post) => (
+          <li key={post.id}>
+            <b>{post.title}</b> - {post.description}
+            <button onClick={() => setEditPost(post)}>Edit</button>
+            <button onClick={() => deletePost(post.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default PostList;
+
+/////////////4. Add Post (CREATE)
+
+File: src/components/AddPost.js
+
+import React, { useState } from "react";
+import axios from "../api";
+
+function AddPost({ fetchPosts }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await axios.post("/posts", { title, description });
+    setTitle("");
+    setDescription("");
+    fetchPosts();
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        placeholder="Title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+      />
+      <input
+        placeholder="Description"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+      />
+      <button>Add</button>
+    </form>
+  );
+}
+
+export default AddPost;
+
+//////////////////////5. Edit Post (UPDATE)
+
+File: src/components/EditPost.js
+
+import React, { useState } from "react";
+import axios from "../api";
+
+function EditPost({ post, fetchPosts, setEditPost }) {
+  const [title, setTitle] = useState(post.title);
+  const [description, setDescription] = useState(post.description);
+
+  const updatePost = async () => {
+    await axios.put(`/posts/${post.id}`, { title, description });
+    fetchPosts();
+    setEditPost(null);
+  };
+
+  return (
+    <div>
+      <h3>Edit Post</h3>
+      <input value={title} onChange={(e) => setTitle(e.target.value)} />
+      <input value={description} onChange={(e) => setDescription(e.target.value)} />
+      <button onClick={updatePost}>Update</button>
+    </div>
+  );
+}
+
+export default EditPost;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
